@@ -4,6 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 import logging
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Set up logging
 logging.basicConfig(
@@ -144,7 +145,7 @@ class AstraVectorDB:
 def main():
     # Configuration
     config = {
-        'token': 'AstraCS:wmFkfxfCCwDYPZFStousOBeP:38b8f504c9ebe6a747750d87a302d7d5ae000a05ba7612b07410b562ba3c4639',
+        'token': os.getenv("ASTRA_DB_TOKEN"),
         'api_endpoint': 'https://dfad9286-9c2b-4713-9c5a-709d9615cbcd-us-east-2.apps.astra.datastax.com',
         'collection_name': 'agricultural_data',
         'csv_path': 'datafarmer.csv'  # Update this path
