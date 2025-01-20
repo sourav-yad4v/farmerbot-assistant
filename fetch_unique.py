@@ -1,4 +1,5 @@
 from astrapy import DataAPIClient
+from dotenv import load_dotenv
 
 def fetch_all_documents(collection):
     """Fetch all documents from the specified collection."""
@@ -45,11 +46,10 @@ def fetch_row_data(element, item, year):
         "metadata.year": year
     }
     # Initialize the Astra DB client
-    client = DataAPIClient("AstraCS:wmFkfxfCCwDYPZFStousOBeP:38b8f504c9ebe6a747750d87a302d7d5ae000a05ba7612b07410b562ba3c4639")
-    print("Debug: Astra DB client initialized successfully.")
+    client = DataAPIClient(os.getenv("ASTRA_DB_TOKEN"))
 
     db = client.get_database_by_api_endpoint(
-        "https://dfad9286-9c2b-4713-9c5a-709d9615cbcd-us-east-2.apps.astra.datastax.com"
+       os.getenv("ASTRA_DB_ENDPOINT")
     )
     print("Debug: Connected to the database endpoint.")
 
@@ -68,11 +68,10 @@ def fetch_row_data(element, item, year):
 if __name__ == "__main__":
     try:
         # Initialize the Astra DB client
-        client = DataAPIClient("AstraCS:wmFkfxfCCwDYPZFStousOBeP:38b8f504c9ebe6a747750d87a302d7d5ae000a05ba7612b07410b562ba3c4639")
-        print("Debug: Astra DB client initialized successfully.")
+        client = DataAPIClient(os.getenv("ASTRA_DB_TOKEN"))
 
         db = client.get_database_by_api_endpoint(
-            "https://dfad9286-9c2b-4713-9c5a-709d9615cbcd-us-east-2.apps.astra.datastax.com"
+            os.getenv("ASTRA_DB_ENDPOINT")
         )
         print("Debug: Connected to the database endpoint.")
 
