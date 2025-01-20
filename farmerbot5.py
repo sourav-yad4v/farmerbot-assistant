@@ -19,6 +19,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
 class AgriculturalData:
     """Agricultural data categories and mappings"""
@@ -115,17 +117,26 @@ class AgriculturalData:
     }
 
 class CacheManager:
-    """Handle caching with Redis fallback to in-memory cache"""
-
-    def __init__(self, redis_url: Optional[str] = None):
+    """Handle caching with Redis Cloud fallback to in-memory cache"""
+    def __init__(self, redis_config: Optional[dict] = None):
         self.redis_client = None
         self.in_memory_cache = {}
-        if redis_url:
+        
+        if redis_config:
             try:
-                self.redis_client = redis.from_url(redis_url)
-                self.redis_client.ping()
-            except:
-                st.warning("Redis connection failed. Using in-memory cache.")
+                self.redis_client = redis.Redis(
+                    host=redis_config.get('host'),
+                    port=redis_config.get('port'),
+                    decode_responses=True,
+                    username=redis_config.get('username', 'default'),
+                    password=redis_config.get('password'),
+                    ssl=False,  # Changed to False since this endpoint doesn't use SSL
+                    ssl_cert_reqs=None  # Remove SSL certificate requirements
+                )
+                self.redis_client.ping()  # Test connection
+            except Exception as e:
+                st.warning(f"Redis Cloud connection failed: {str(e)}. Using in-memory cache.")
+                self.redis_client = None
 
     def get_cache_key(self, prefix: str, *args) -> str:
         """Generate deterministic cache key"""
@@ -134,17 +145,25 @@ class CacheManager:
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
-        if self.redis_client:
-            value = self.redis_client.get(key)
-            return json.loads(value) if value else None
+        try:
+            if self.redis_client:
+                value = self.redis_client.get(key)
+                return json.loads(value) if value else None
+        except Exception as e:
+            st.warning(f"Redis get operation failed: {str(e)}")
+            return self.in_memory_cache.get(key)
         return self.in_memory_cache.get(key)
 
     def set(self, key: str, value: Any, ttl: int = 3600) -> None:
         """Set value in cache"""
-        json_value = json.dumps(value)
-        if self.redis_client:
-            self.redis_client.setex(key, ttl, json_value)
-        else:
+        try:
+            json_value = json.dumps(value)
+            if self.redis_client:
+                self.redis_client.setex(key, ttl, json_value)
+            else:
+                self.in_memory_cache[key] = value
+        except Exception as e:
+            st.warning(f"Redis set operation failed: {str(e)}")
             self.in_memory_cache[key] = value
 
 class DataManager:
@@ -782,18 +801,28 @@ def main():
         st.session_state.context = {}
         st.session_state.language = 'en'
 
+    # Redis Cloud configuration
+    redis_config = {
+        'host': 'redis-18444.c323.us-east-1-2.ec2.redns.redis-cloud.com',
+        'port': 18444,
+        'username': 'default',
+        'password': os.getenv("REDIS_PASSWORD")  # Replace with your actual password
+    }
+
     try:
         astra_client = AstraDB(
             token=constant.ASTRA_DB_TOKEN,
             api_endpoint=constant.ASTRA_DB_ENDPOINT
         )
-
-        cache_manager = CacheManager(constant.REDIS_URL)
+        
+        # Initialize CacheManager with Redis Cloud config
+        cache_manager = CacheManager(redis_config)
+        
         data_manager = DataManager(astra_client, cache_manager)
         prompt_manager = PromptManager(openai, cache_manager)
         web_search_manager = WebSearchManager(openai)
         price_prediction_agent = PricePredictionAgent(cache_manager)
-
+        
         chatbot_ui = ChatbotUI(
             data_manager,
             prompt_manager,
@@ -812,11 +841,12 @@ def main():
             chatbot_ui.show_data_view()
 
     except Exception as e:
-        st.error("An error occurred. Please try again.")
-        if st.button("Restart Application"):
-            st.session_state.stage = 'welcome'
-            st.session_state.context = {}
-            st.rerun()
+        st.error(f"An error occurred: {str(e)}. Please try again.")
+        
+    if st.button("Restart Application"):
+        st.session_state.stage = 'welcome'
+        st.session_state.context = {}
+        st.rerun()
 
 if __name__ == "__main__":
     main()
