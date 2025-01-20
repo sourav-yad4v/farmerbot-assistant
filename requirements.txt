@@ -1,9 +1,10 @@
 streamlit
-pandas
-numpy
-scikit-learn
-requests
-openai
-redis
-beautifulsoup4
 astrapy
+redis
+pandas
+openai
+beautifulsoup4
+requests
+scikit-learn
+numpy
+python-dotenv
