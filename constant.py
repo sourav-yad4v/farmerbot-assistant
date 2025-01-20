@@ -2,20 +2,18 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
 # AstraDB Configuration
-ASTRA_DB_TOKEN= "AstraCS:wmFkfxfCCwDYPZFStousOBeP:38b8f504c9ebe6a747750d87a302d7d5ae000a05ba7612b07410b562ba3c4639"
-ASTRA_DB_ENDPOINT= "https://dfad9286-9c2b-4713-9c5a-709d9615cbcd-us-east-2.apps.astra.datastax.com"
-ASTRA_COLLECTION_NAME= "agricultural_data"
+ASTRA_DB_TOKEN= os.getenv("ASTRA_DB_TOKEN")
+ASTRA_DB_ENDPOINT= os.getenv("ASTRA_DB_ENDPOINT")
+ASTRA_COLLECTION_NAME= os.getenv("ASTRA_COLLECTION_NAME")
 
 # openAI Configuration
-OPENAI_KEY= "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"
-# AZURE_OPENAI_API_VERSION= "2023-05-15"  # Replace with your API version
-OPENAI_ENDPOINT= "https://api.openai.com/v1/completions"
+OPENAI_KEY= os.getenv("OPENAI_KEY")
+OPENAI_ENDPOINT= os.getenv("OPENAI_ENDPOINT")
 # AZURE_DEPLOYMENT_NAME= "gpt-4-turbo"
 
 # Redis Configuration (Optional - will fallback to in-memory if not available),,
-REDIS_URL= "redis://localhost:6379"
+REDIS_URL= os.getenv("REDIS_URL")
 
 # Unique Data Fetched
 # 'Yield', 'Anise, badian, coriander, cumin, caraway, fennel and juniper berries, raw'),
