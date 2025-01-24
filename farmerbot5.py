@@ -494,7 +494,8 @@ class WeatherAnalysisAgent:
     
     def __init__(self, cache_manager: CacheManager, openai_client: openai):
         self.cache_manager = cache_manager
-        self.openai_client = openai_client
+        self.openai_client = openai_client or OpenAI(api_key=constant.OPENAI_KEY)
+        self.weather_api_key = os.getenv("OPENWEATHER_API_KEY")
         self.weather_api_key = os.getenv("OPENWEATHER_API_KEY")
         if not self.weather_api_key:
             raise ValueError("OpenWeather API key not found in environment variables")
@@ -647,7 +648,7 @@ class WeatherAnalysisAgent:
             """
 
             try:
-                response = openai.ChatCompletion.create(
+                response = self.openai_client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "You are an expert agricultural advisor specializing in weather impact analysis and crop management."},
@@ -1080,7 +1081,7 @@ def main():
         'username': 'default',
         'password': os.getenv("REDIS_PASSWORD")  # Replace with your actual password
     }
-
+    openai_client = OpenAI(api_key=constant.OPENAI_KEY)
     try:
         astra_client = AstraDB(
             token=constant.ASTRA_DB_TOKEN,
@@ -1092,7 +1093,7 @@ def main():
         prompt_manager = PromptManager(openai, cache_manager)
         web_search_manager = WebSearchManager(openai)
         price_prediction_agent = PricePredictionAgent(cache_manager)
-        weather_agent = WeatherAnalysisAgent(cache_manager, openai) 
+        weather_agent = WeatherAnalysisAgent(cache_manager, openai_client)
         #demo
         print("Hello")
         chatbot_ui = ChatbotUI(
