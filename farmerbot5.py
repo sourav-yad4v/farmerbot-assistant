@@ -20,6 +20,11 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import requests
+from geopy.geocoders import Nominatim
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, Tuple
+import openai
 load_dotenv()
 
 class AgriculturalData:
@@ -328,31 +333,57 @@ class WebSearchManager:
                 "Area harvested": "AG.LND.AGRI.ZS",
                 "Yield": "AG.YLD.CREL.KG"
             }
-            
+        
             indicator = indicators.get(metric, indicators["Production"])
             url = f"{base_url}/{indicator}?format=json&date={year}"
-            
+        
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                
-                # Format the data for OpenAI
-                context_data = f"World Bank agricultural data for {crop} in {year}: {data}"
-                
+            
+                # Enhanced context for OpenAI analysis
+                context_prompt = f"""
+                Analyze the following agricultural data for {crop} in {year}, focusing on {metric}.
+            
+                Key Analysis Points:
+                1. Global Production Context:
+                   - Compare {crop}'s {metric.lower()} with global averages
+                   - Identify major producing regions
+                   - Note any significant changes from previous years
+            
+                2. Market Impact Analysis:
+                   - Effect on local and global markets
+                   - Price implications
+                   - Supply chain considerations
+            
+                3. Agricultural Insights:
+                   - Growing conditions and challenges
+                   - Technological advancements
+                   - Sustainability aspects
+            
+                4. Future Outlook:
+                   - Short-term projections
+                   - Long-term trends
+                   - Potential challenges and opportunities
+            
+                Data Source: {data}
+            
+                Please provide a comprehensive yet concise analysis covering these aspects,
+                focusing on practical insights for farmers and agricultural stakeholders.
+                Include specific numbers and percentages where relevant.
+                """
+            
                 # Use OpenAI to analyze and summarize the data
                 summary = openai.ChatCompletion.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": f"Analyze and summarize agricultural data for {crop}. Focus on {metric} in {year}."},
-                        {"role": "user", "content": context_data}
+                        {"role": "system", "content": "You are an expert agricultural analyst with deep knowledge of global crop markets and farming practices."},
+                        {"role": "user", "content": context_prompt}
                     ],
-                    temperature=0.5
+                    temperature=0.5,
+                    max_tokens=1000
                 )
-                
-                # Also search FAO database
-                fao_url = f"http://www.fao.org/faostat/en/#data/QC"
-                fao_response = requests.get(fao_url)
-                
+            
                 return {
                     "summary": summary.choices[0].message.content,
                     "sources": [
@@ -367,7 +398,7 @@ class WebSearchManager:
                     "summary": f"Unable to fetch data for {crop} {metric} in {year}. Please try different parameters.",
                     "sources": []
                 }
-                
+            
         except Exception as e:
             return {
                 "summary": f"Error fetching data: {str(e)}. Please try again later.",
@@ -488,6 +519,202 @@ class PricePredictionAgent:
                 'status': 'error'
             }
 
+class WeatherAnalysisAgent:
+    """Enhanced weather analysis agent with location processing and crop-specific recommendations"""
+    
+    def __init__(self, cache_manager: CacheManager, openai_client: openai):
+        self.cache_manager = cache_manager
+        self.openai_client = openai_client
+        self.weather_api_key = os.getenv("OPENWEATHER_API_KEY")
+        if not self.weather_api_key:
+            raise ValueError("OpenWeather API key not found in environment variables")
+        self.geocoder = Nominatim(user_agent="agricultural_assistant")
+        
+    def get_coordinates(self, location: str) -> Optional[Tuple[float, float]]:
+        """Convert location string to coordinates"""
+        try:
+            if not location:
+                return None
+            location_data = self.geocoder.geocode(location)
+            if location_data:
+                return (location_data.latitude, location_data.longitude)
+            return None
+        except Exception as e:
+            print(f"Error getting coordinates: {str(e)}")
+            return None
+
+    def fetch_weather_data(self, lat: float, lon: float) -> Dict[str, Any]:
+        """Fetch current and forecast weather data from OpenWeather API"""
+        try:
+            # Current weather
+            current_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={self.weather_api_key}&units=metric"
+            current_response = requests.get(current_url)
+            current_response.raise_for_status()  # Raise an exception for bad status codes
+            current_data = current_response.json()
+
+            # 5-day forecast (since daily forecast requires paid subscription)
+            forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={self.weather_api_key}&units=metric"
+            forecast_response = requests.get(forecast_url)
+            forecast_response.raise_for_status()
+            forecast_data = forecast_response.json()
+
+            # Process forecast data to get daily values
+            daily_forecasts = []
+            current_date = None
+            temp_max = float('-inf')
+            temp_min = float('inf')
+            
+            for item in forecast_data['list']:
+                date = datetime.fromtimestamp(item['dt']).strftime('%Y-%m-%d')
+                
+                if current_date != date:
+                    if current_date is not None:
+                        daily_forecasts.append({
+                            'date': current_date,
+                            'temp_max': temp_max,
+                            'temp_min': temp_min,
+                            'humidity': item['main']['humidity'],
+                            'description': item['weather'][0]['description'],
+                            'rain_prob': item.get('pop', 0) * 100
+                        })
+                    current_date = date
+                    temp_max = float('-inf')
+                    temp_min = float('inf')
+                
+                temp_max = max(temp_max, item['main']['temp_max'])
+                temp_min = min(temp_min, item['main']['temp_min'])
+
+            # Add the last day
+            if current_date and current_date not in [d['date'] for d in daily_forecasts]:
+                daily_forecasts.append({
+                    'date': current_date,
+                    'temp_max': temp_max,
+                    'temp_min': temp_min,
+                    'humidity': forecast_data['list'][-1]['main']['humidity'],
+                    'description': forecast_data['list'][-1]['weather'][0]['description'],
+                    'rain_prob': forecast_data['list'][-1].get('pop', 0) * 100
+                })
+
+            weather_data = {
+                'current_conditions': {
+                    'temperature': current_data['main']['temp'],
+                    'humidity': current_data['main']['humidity'],
+                    'wind_speed': current_data['wind']['speed'],
+                    'description': current_data['weather'][0]['description'],
+                    'rainfall': current_data.get('rain', {}).get('1h', 0),
+                },
+                'forecast': {
+                    'daily': daily_forecasts[:7]  # Limit to 7 days
+                }
+            }
+            return weather_data
+            
+        except requests.RequestException as e:
+            print(f"Error fetching weather data: {str(e)}")
+            raise Exception(f"Weather API error: {str(e)}")
+        except Exception as e:
+            print(f"Error processing weather data: {str(e)}")
+            raise Exception(f"Error processing weather data: {str(e)}")
+
+    def get_weather_recommendations(
+        self,
+        location: str,
+        crop: str,
+        growth_stage: str
+    ) -> Dict[str, Any]:
+        """Get weather analysis and recommendations"""
+        try:
+            if not location:
+                return {'error': 'Please enter a location'}
+
+            # Check cache first
+            cache_key = self.cache_manager.get_cache_key(
+                'weather_recommendations',
+                location,
+                crop,
+                growth_stage
+            )
+            cached_result = self.cache_manager.get(cache_key)
+            if cached_result:
+                return cached_result
+
+            # Get coordinates
+            coordinates = self.get_coordinates(location)
+            if not coordinates:
+                return {'error': 'Could not find the specified location. Please check the location name and try again.'}
+
+            # Fetch weather data
+            try:
+                weather_data = self.fetch_weather_data(*coordinates)
+            except Exception as e:
+                return {'error': str(e)}
+
+            if not weather_data:
+                return {'error': 'Could not fetch weather data. Please try again later.'}
+
+            # Generate analysis prompt
+            prompt = f"""
+            Analyze the following weather conditions for {crop} cultivation at {growth_stage} growth stage:
+
+            Current Conditions:
+            - Temperature: {weather_data['current_conditions']['temperature']}°C
+            - Humidity: {weather_data['current_conditions']['humidity']}%
+            - Wind Speed: {weather_data['current_conditions']['wind_speed']} m/s
+            - Conditions: {weather_data['current_conditions']['description']}
+
+            Forecast for next {len(weather_data['forecast']['daily'])} days:
+            {self._format_forecast(weather_data['forecast']['daily'])}
+
+            Provide specific recommendations for:
+            1. Immediate Actions (next 24 hours)
+            2. Short-term Planning (next 3-5 days)
+            3. Crop Protection Measures
+            4. Irrigation Adjustments
+            5. Disease Prevention
+            6. Growth Stage Specific Advice
+
+            Format the response in clear sections with actionable recommendations.
+            """
+
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are an expert agricultural advisor specializing in weather impact analysis and crop management."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+
+                result = {
+                    'weather_data': weather_data,
+                    'recommendations': response.choices[0].message.content,
+                    'location': location,
+                    'timestamp': datetime.now().isoformat()
+                }
+
+                # Cache the result
+                self.cache_manager.set(cache_key, result, ttl=3600)  # Cache for 1 hour
+
+                return result
+
+            except Exception as e:
+                return {'error': f"Error generating recommendations: {str(e)}"}
+
+        except Exception as e:
+            return {'error': f"Analysis error: {str(e)}"}
+
+    def _format_forecast(self, forecast_data: List[Dict]) -> str:
+        """Format forecast data for the prompt"""
+        forecast_str = ""
+        for day in forecast_data:
+            forecast_str += f"\n{day['date']}:"
+            forecast_str += f"\n  - Temperature: {day['temp_min']:.1f}°C to {day['temp_max']:.1f}°C"
+            forecast_str += f"\n  - Humidity: {day['humidity']}%"
+            forecast_str += f"\n  - Conditions: {day['description']}"
+            forecast_str += f"\n  - Rain Probability: {day['rain_prob']:.1f}%\n"
+        return forecast_str
 
 class ChatbotUI:
     def __init__(
@@ -496,13 +723,15 @@ class ChatbotUI:
         prompt_manager: PromptManager,
         cache_manager: CacheManager,
         web_search_manager: WebSearchManager,
-        price_prediction_agent: PricePredictionAgent
+        price_prediction_agent: PricePredictionAgent,
+        weather_agent: WeatherAnalysisAgent
     ):
         self.data_manager = data_manager
         self.prompt_manager = prompt_manager
         self.cache_manager = cache_manager
         self.web_search_manager = web_search_manager
         self.price_prediction_agent = price_prediction_agent
+        self.weather_agent = weather_agent
 
     def show_welcome(self) -> None:
         st.markdown("### 🌾 Agricultural Data Assistant")
@@ -630,7 +859,7 @@ class ChatbotUI:
                     col2.metric("Status", stats.get('Status', 'N/A'))
 
                 # Add tabs for different views
-                tab1, tab2, tab3 = st.tabs(["Web Data", "Price Predictions", "Historical Trends"])
+                tab1, tab2, tab3, tab4 = st.tabs(["Web Data", "Weather Analysis", "Price Predictions", "Historical Trends"])
                 
                 with tab1:
                     if st.button("Search Web for Additional Data"):
@@ -653,6 +882,9 @@ class ChatbotUI:
                                 st.warning("No additional information found from web sources.")
                 
                 with tab2:
+                    self.show_weather_analysis()
+
+                with tab3:
                     if st.button("Generate Price Predictions"):
                         with st.spinner("Generating predictions..."):
                             # Get historical data for the past 10 years
@@ -691,7 +923,7 @@ class ChatbotUI:
                             else:
                                 st.warning("Insufficient historical data for making predictions.")
                 
-                with tab3:
+                with tab4:
                     if st.button("Show Historical Trends"):
                         with st.spinner("Loading historical data..."):
                         # Fetch historical data for the last 10 years
@@ -772,7 +1004,6 @@ class ChatbotUI:
                     f"No data available for {context['crop']} - {context['metric']} in {selected_year}. "
                     "This combination might not exist in our database. Please try a different combination."
                 )
-
         except Exception as e:
             st.error("Error fetching data. Please try again.")
     
@@ -787,7 +1018,78 @@ class ChatbotUI:
                 st.session_state.stage = 'metric_selection'
                 st.session_state.context = {}
                 st.rerun()
+    def show_weather_analysis(self) -> None:
+        """Display weather analysis UI in ChatbotUI class"""
+        st.markdown("### 🌤️ Weather Analysis and Recommendations")
 
+        # Get current context
+        context = st.session_state.context
+        crop = context.get('crop', '')
+
+        # Location input
+        location = st.text_input(
+            "Enter your location (city, state, country)",
+            placeholder="e.g., Mumbai, Maharashtra, India"
+        )
+    
+        # Growth stage selection
+        growth_stages = [
+            "Seedling",
+            "Vegetative",
+            "Flowering",
+            "Fruiting",
+            "Maturity"
+        ]
+        growth_stage = st.selectbox(
+            "Select crop growth stage",
+            options=growth_stages
+        )
+
+        if st.button("Get Weather Analysis"):
+            if not location:
+                st.warning("Please enter a location")
+                return
+                
+            with st.spinner("Analyzing weather conditions..."):
+                result = self.weather_agent.get_weather_recommendations(
+                    location=location,
+                    crop=crop,
+                    growth_stage=growth_stage
+                )
+
+                if 'error' in result:
+                    st.error(f"Error: {result['error']}")
+                    return
+
+                # Display current conditions
+                st.markdown("#### Current Weather Conditions")
+                current = result['weather_data']['current_conditions']
+                col1, col2, col3 = st.columns(3)
+            
+                with col1:
+                    st.metric("Temperature", f"{current['temperature']}°C")
+                with col2:
+                    st.metric("Humidity", f"{current['humidity']}%")
+                with col3:
+                    st.metric("Wind Speed", f"{current['wind_speed']} m/s")
+
+                # Display forecast
+                st.markdown("#### 7-Day Forecast")
+                forecast_df = pd.DataFrame(result['weather_data']['forecast']['daily'])
+                st.dataframe(
+                    forecast_df[[
+                        'date', 'temp_min', 'temp_max',
+                        'humidity', 'description', 'rain_prob'
+                    ]],
+                    use_container_width=True
+                )
+
+                # Display AI recommendations
+                st.markdown("#### 🤖 AI Recommendations")
+                st.markdown(result['recommendations'])
+
+                # # Add to ChatbotUI class initialization
+                # self.weather_agent = WeatherAnalysisAgent(cache_manager, openai)
 
 def main():
     st.set_page_config(
@@ -815,20 +1117,20 @@ def main():
             api_endpoint=constant.ASTRA_DB_ENDPOINT
         )
         
-        # Initialize CacheManager with Redis Cloud config
         cache_manager = CacheManager(redis_config)
-        
         data_manager = DataManager(astra_client, cache_manager)
         prompt_manager = PromptManager(openai, cache_manager)
         web_search_manager = WebSearchManager(openai)
         price_prediction_agent = PricePredictionAgent(cache_manager)
+        weather_agent = WeatherAnalysisAgent(cache_manager, openai) 
         
         chatbot_ui = ChatbotUI(
             data_manager,
             prompt_manager,
             cache_manager,
             web_search_manager,
-            price_prediction_agent
+            price_prediction_agent,
+            weather_agent
         )
 
         if st.session_state.stage == 'welcome':
