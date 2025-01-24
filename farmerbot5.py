@@ -1093,7 +1093,8 @@ def main():
         web_search_manager = WebSearchManager(openai)
         price_prediction_agent = PricePredictionAgent(cache_manager)
         weather_agent = WeatherAnalysisAgent(cache_manager, openai) 
-        
+        #demo
+        print("Hello")
         chatbot_ui = ChatbotUI(
             data_manager,
             prompt_manager,
