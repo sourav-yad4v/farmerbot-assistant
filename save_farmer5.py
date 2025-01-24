@@ -21,8 +21,7 @@ from dotenv import load_dotenv
 from geopy.geocoders import Nominatim
 
 load_dotenv()
-from openai import OpenAI
-client = OpenAI(api_key=constant.OPENAI_KEY)
+
 class AgriculturalData:
     """Agricultural data categories and mappings"""
     
@@ -271,8 +270,9 @@ class PromptManager:
             }
         }
 
+        openai.api_key = constant.OPENAI_KEY
         base_prompt = system_prompts.get(stage, {}).get(language, system_prompts[stage]['en'])
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": base_prompt},
@@ -280,7 +280,7 @@ class PromptManager:
             temperature=0.7,
             max_tokens=100
         )
-    
+        
         prompt = response.choices[0].message.content
         self.cache_manager.set(cache_key, prompt)
         return prompt
@@ -344,7 +344,7 @@ class WebSearchManager:
                 """
             
                 # Use OpenAI to analyze and summarize the data
-                summary = client.chat.completions.create(
+                summary = openai.ChatCompletion.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "system", "content": "You are an expert agricultural analyst with deep knowledge of global crop markets and farming practices."},
