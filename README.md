@@ -16,3 +16,63 @@ An AI-powered web application designed to provide insights on crops, weather, an
 
 ---
 
+# Prerequisites
+
+- Python 3.8+
+- API Keys:
+- - OpenAI
+- - OpenWeather
+- - Redis Cloud
+- - Astra DB
+
+# Project Screenshots
+
+## Welcome Screen
+![Welcome Screen](screenshots/welcome.png)
+- Initial landing page
+- Language selection
+- Application introduction
+
+## Metric Selection
+![Metric Selection](screenshots/show_metric.png)
+- Agricultural metrics overview
+- User selects data category
+- Descriptive metric information
+
+## Crop & Year Selection
+![Crop Selection](screenshots/crop_selection.png)
+- Crop type dropdown
+- Year selection
+
+## Web Data View 1
+![Web Data](screenshots/WebData1.png)
+- Initial web data retrieval
+- Basic agricultural insights
+
+## Web Data View 2
+![Web Data End View](screenshots/WebData2.png)
+- Detailed web data analysis
+- Comparative agricultural information
+- Sources
+
+## Weather Analysis 1
+![Weather Analysis Initial](screenshots/Weather1.png)
+- Location input
+- Current weather conditions
+
+## Weather Analysis 2
+![Weather Analysis Detailed](screenshots/Weather2.png)
+- Extended forecast
+- Crop growth stage recommendations
+
+## Price Predictor
+![Price Prediction](screenshots/Prediction.png)
+- Machine learning predictions
+- Market factor analysis
+
+## Historical Trends
+![Historical Data Trends](screenshots/historical.png)
+- Multi-year data visualization
+- Trend analysis
+- Statistical values
+
