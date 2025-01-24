@@ -71,7 +71,7 @@ An AI-powered web application designed to provide insights on crops, weather, an
 - Market factor analysis
 
 ## Historical Trends
-![Historical Data Trends](screenshots/historical.png)
+![Historical Data Trends](screenshots/Historical.png)
 - Multi-year data visualization
 - Trend analysis
 - Statistical values
