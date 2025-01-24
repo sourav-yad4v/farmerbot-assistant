@@ -7,7 +7,6 @@ openai
 scikit-learn
 numpy
 python-dotenv
-dotenv
 geopy
 beautifulsoup4
 deep-translator
