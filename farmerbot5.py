@@ -4,27 +4,22 @@ import redis
 import json
 from functools import lru_cache
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import constant
 import os
 from typing import Dict, List, Optional, Tuple, Any
 import hashlib
 import openai
-import farmerbot4, fetch_unique
+import fetch_unique, unique_data_filter
 import requests
 from bs4 import BeautifulSoup
-import requests
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 import numpy as np
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
-import requests
 from geopy.geocoders import Nominatim
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Tuple
-import openai
+
 load_dotenv()
 
 class AgriculturalData:
@@ -792,7 +787,7 @@ class ChatbotUI:
 
         # Fetch the unique crops for the selected metric using filter_items_by_element
         try:
-            crops = farmerbot4.filter_items_by_element(metric)
+            crops = unique_data_filter.filter_items_by_element(metric)
             if not crops:
                 st.error(f"No crops found for the selected metric: {metric}")
                 return
