@@ -1084,7 +1084,7 @@ def main():
     try:
         astra_client = AstraDB(
             token=constant.ASTRA_DB_TOKEN,
-            api_endpoint=constant.ASTRA_DB_ENDPOINT
+            api_endpoint="https://dfad9286-9c2b-4713-9c5a-709d9615cbcd-us-east-2.apps.astra.datastax.com"
         )
         
         cache_manager = CacheManager(redis_config)
