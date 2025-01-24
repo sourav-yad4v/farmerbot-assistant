@@ -1,10 +1,13 @@
 streamlit
 astrapy
 redis
+jsonschema
 pandas
 openai
-beautifulsoup4
-requests
 scikit-learn
 numpy
 python-dotenv
+dotenv
+geopy
+beautifulsoup4
+deep-translator
