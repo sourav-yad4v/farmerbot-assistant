@@ -24,32 +24,7 @@ load_dotenv()
 
 class AgriculturalData:
     """Agricultural data categories and mappings"""
-
-    # CROP_CATEGORIES = {
-    #     "Cereals": ["Rice", "Wheat", "Maize", "Barley", "Sorghum", "Oats", "Rye", "Millet", "Buckwheat", "Triticale"],
-    #     "Pulses": ["Beans, dry", "Chick peas, dry", "Lentils, dry", "Pigeon peas, dry", "Cow peas, dry", "Broad beans, dry"],
-    #     "Fruits": [
-    #         "Apples", "Bananas", "Oranges", "Grapes", "Mangoes, guavas and mangosteens", 
-    #         "Pineapples", "Watermelons", "Papayas", "Lemons and limes"
-    #     ],
-    #     "Vegetables": [
-    #         "Tomatoes", "Potatoes", "Onions and shallots, dry", "Cabbages", 
-    #         "Carrots and turnips", "Eggplants (aubergines)", "Cauliflowers and broccoli"
-    #     ],
-    #     "Oil Crops": [
-    #         "Soya beans", "Groundnuts", "Sunflower seed", "Rapeseed", 
-    #         "Sesame seed", "Olives", "Palm kernels"
-    #     ],
-    #     "Commercial Crops": [
-    #         "Cotton lint", "Coffee, green", "Tea leaves", "Sugar cane", 
-    #         "Tobacco, unmanufactured", "Rubber, natural"
-    #     ],
-    #     "Spices": [
-    #         "Ginger", "Pepper (Piper spp.)", "Chillies and peppers, dry", 
-    #         "Cinnamon", "Nutmeg, mace, cardamoms"
-    #     ]
-    # }
-
+    
     METRICS = {
         "Area harvested": {
             "description": "Total land area used for cultivation",
